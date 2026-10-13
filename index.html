@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>Block Blast Game</title>
+    <style>
+        :root {
+            --bg-color: #2e7d32;
+            --board-bg: #1b4d23;
+            --cell-bg: #143b1a;
+            --accent-color: #4caf50;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-user-select: none;
+            touch-action: manipulation;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: var(--bg-color);
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            transition: background-color 0.5s ease;
+            overflow: hidden;
+        }
+
+        /* Tampilan Awal (Start Screen) */
+        #start-screen, #game-over-screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.85);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .title {
+            font-size: 3rem;
+            font-weight: 900;
+            color: #ffeb3b;
+            text-shadow: 3px 3px #e91e63;
+            margin-bottom: 2rem;
+            text-align: center;
+        }
+
+        .btn-play {
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #fff;
+            background: linear-gradient(135deg, #ff9800, #f57c00);
+            border: none;
+            border-radius: 50px;
+            box-shadow: 0 6px 0 #b26a00, 0 10px 20px rgba(0,0,0,0.4);
+            cursor: pointer;
+            transition: all 0.1s;
+        }
+
+        .btn-play:active {
+            transform: translateY(4px);
+            box-shadow: 0 2px 0 #b26a00, 0 5px 10px rgba(0,0,0,0.4);
+        }
+
+        /* Area Game */
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            width: 100%;
+            max-width: 400px;
+            padding: 10px;
+        }
+
+        .score-board {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            margin-bottom: 15px;
+            font-size: 1.2rem;
+            font-weight: bold;
+            background: rgba(0,0,0,0.2);
+            padding: 10px 20px;
+            border-radius: 15px;
+        }
+
+        .score-box {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        /* Papan Permainan */
+        #board {
+            display: grid;
+            grid-template-columns: repeat(8, 1fr);
+            grid-template-rows: repeat(8, 1fr);
+            gap: 4px;
+            width: 100%;
+            aspect-ratio: 1 / 1;
+            background-color: var(--board-bg);
+            padding: 8px;
+            border-radius: 12px;
+            box-shadow: inset 0 0 10px rgba(0,0,0,0.5), 0 8px 20px rgba(0,0,0,0.3);
+            transition: background-color 0.5s ease;
+        }
+
+        .cell {
+            background-color: var(--cell-bg);
+            border-radius: 4px;
+            transition: background-color 0.2s, transform 0.1s;
+        }
+
+        .cell.filled {
+            background-color: #81c784;
+            box-shadow: inset 2px 2px rgba(255,255,255,0.4), inset -2px -2px rgba(0,0,0,0.2);
+        }
+
+        .cell.preview {
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Tempat Balok Pilihan */
+        #block-dock {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            width: 100%;
+            height: 120px;
+            margin-top: 20px;
+        }
+
+        .dock-slot {
+            width: 100px;
+            height: 100px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .draggable-block {
+            display: grid;
+            gap: 2px;
+            cursor: grab;
+            touch-action: none;
+        }
+
+        .block-mini-cell {
+            background-color: #a5d6a7;
+            border-radius: 2px;
+            box-shadow: inset 1px 1px rgba(255,255,255,0.4);
+        }
+
+        .hidden {
+            display: none !important;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Layar Awal -->
+    <div id="start-screen">
+        <div class="title">BLOCK<br>BLAST</div>
+        <button class="btn-play" onclick="startGame()">PLAY</button>
+    </div>
+
+    <!-- Layar Game Over -->
+    <div id="game-over-screen" class="hidden">
+        <div class="title" style="color: #f44336; text-shadow: 3px 3px #880e4f;">GAME OVER</div>
+        <p style="font-size: 1.5rem; margin-bottom: 2rem;">Skor Kamu: <span id="final-score">0</span></p>
+        <button class="btn-play" onclick="resetGame()">MAIN LAGI</button>
+    </div>
+
+    <!-- Area Permainan -->
+    <div id="game-container">
+        <div class="score-board">
+            <div class="score-box">🏆 Best: <span id="best-score">0</span></div>
+            <div class="score-box">⭐ Skor: <span id="current-score">0</span></div>
+        </div>
+
+        <div id="board"></div>
+
+        <div id="block-dock">
+            <div class="dock-slot" id="slot-0"></div>
+            <div class="dock-slot" id="slot-1"></div>
+            <div class="dock-slot" id="slot-2"></div>
+        </div>
+    </div>
+
+    <script>
+        // Web Audio API untuk efek suara sintetis tanpa file eksternal
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        let audioCtx;
+
+        function initAudio() {
+            if (!audioCtx) audioCtx = new AudioCtx();
+        }
+
+        function playSound(type) {
+            if (!audioCtx) return;
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+
+            if (type === 'place') {
+                osc.type = 'sine';
+                osc.frequency.setValueAtTime(300, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(150, audioCtx.currentTime + 0.1);
+                gain.gain.setValueAtTime(0.3, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.1);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.1);
+            } else if (type === 'clear') {
+                osc.type = 'triangle';
+                osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(880, audioCtx.currentTime + 0.2);
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.2);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.2);
+            } else if (type === 'gameover') {
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(200, audioCtx.currentTime);
+                osc.frequency.linearRampToValueAtTime(60, audioCtx.currentTime + 0.4);
+                gain.gain.setValueAtTime(0.4, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.01, audioCtx.currentTime + 0.4);
+                osc.start();
+                osc.stop(audioCtx.currentTime + 0.4);
+            }
+        }
+
+        // Variasi Tema Warna Papan
+        const colorThemes = [
+            { bg: '#2e7d32', board: '#1b4d23', cell: '#143b1a' }, // Hijau
+            { bg: '#1565c0', board: '#0d47a1', cell: '#0a3880' }, // Biru
+            { bg: '#6a1b9a', board: '#4a148c', cell: '#380e6b' }, // Ungu
+            { bg: '#c62828', board: '#b71c1c', cell: '#8e1515' }, // Merah
+            { bg: '#ef6c00', board: '#e65100', cell: '#b33f00' }  // Oranye
+        ];
+        let currentThemeIndex = 0;
+
+        // Data Bentuk Balok Lengkap
+        const SHAPES = [
+            // 1x1
+            [[1]],
+            // Garis Horizontal & Vertikal
+            [[1, 1]], [[1], [1]],
+            [[1, 1, 1]], [[1], [1], [1]],
+            [[1, 1, 1, 1]], [[1], [1], [1], [1]],
+            [[1, 1, 1, 1, 1]], [[1], [1], [1], [1], [1]],
+            // Kotak
+            [[1, 1], [1, 1]],
+            [[1, 1, 1], [1, 1, 1], [1, 1, 1]],
+            // L 2x2 & 3x3
+            [[1, 0], [1, 1]], [[0, 1], [1, 1]], [[1, 1], [1, 0]], [[1, 1], [0, 1]],
+            [[1, 0, 0], [1, 0, 0], [1, 1, 1]], [[0, 0, 1], [0, 0, 1], [1, 1, 1]],
+            // T Shapes
+            [[1, 1, 1], [0, 1, 0]], [[0, 1, 0], [1, 1, 1]], [[1, 0], [1, 1], [1, 0]], [[0, 1], [1, 1], [0, 1]],
+            // Z & S Shapes
+            [[1, 1, 0], [0, 1, 1]], [[0, 1, 1], [1, 1, 0]],
+            [[1, 0], [1, 1], [0, 1]], [[0, 1], [1, 1], [1, 0]]
+        ];
+
+        const BOARD_SIZE = 8;
+        let boardState = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+        let score = 0;
+        let bestScore = localStorage.getItem('bb_best_score') || 0;
+        let currentDockBlocks = [null, null, null];
+
+        const boardEl = document.getElementById('board');
+        const scoreEl = document.getElementById('current-score');
+        const bestScoreEl = document.getElementById('best-score');
+
+        // Inisialisasi Papan HTML
+        function createBoard() {
+            boardEl.innerHTML = '';
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    boardEl.appendChild(cell);
+                }
+            }
+            bestScoreEl.innerText = bestScore;
+        }
+
+        function startGame() {
+            initAudio();
+            document.getElementById('start-screen').classList.add('hidden');
+            resetGame();
+        }
+
+        function resetGame() {
+            document.getElementById('game-over-screen').classList.add('hidden');
+            boardState = Array(BOARD_SIZE).fill().map(() => Array(BOARD_SIZE).fill(0));
+            score = 0;
+            scoreEl.innerText = score;
+            
+            // Isi papan dengan beberapa balok bawaan acak
+            generateInitialBlocks();
+            renderBoard();
+            spawnDockBlocks();
+        }
+
+        // Generate Balok Bawaan Acak di Papan saat Awal Game
+        function generateInitialBlocks() {
+            let count = 0;
+            while (count < 12) { // Menaruh sekitar 12 petak acak
+                let r = Math.floor(Math.random() * BOARD_SIZE);
+                let c = Math.floor(Math.random() * BOARD_SIZE);
+                if (boardState[r][c] === 0) {
+                    boardState[r][c] = 1;
+                    count++;
+                }
+            }
+        }
+
+        function renderBoard() {
+            const cells = boardEl.children;
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                for (let c = 0; c < BOARD_SIZE; c++) {
+                    const idx = r * BOARD_SIZE + c;
+                    if (boardState[r][c] === 1) {
+                        cells[idx].classList.add('filled');
+                    } else {
+                        cells[idx].classList.remove('filled', 'preview');
+                    }
+                }
+            }
+        }
+
+        // Spawn Balok Pilihan di Dock
+        function spawnDockBlocks() {
+            for (let i = 0; i < 3; i++) {
+                const randomShape = SHAPES[Math.floor(Math.random() * SHAPES.length)];
+                currentDockBlocks[i] = randomShape;
+                renderDockBlock(i, randomShape);
+            }
+            checkGameOver();
+        }
+
+        function renderDockBlock(slotIdx, shape) {
+            const slot = document.getElementById(`slot-${slotIdx}`);
+            slot.innerHTML = '';
+            if (!shape) return;
+
+            const blockEl = document.createElement('div');
+            blockEl.classList.add('draggable-block');
+            blockEl.style.gridTemplateColumns = `repeat(${shape[0].length}, 18px)`;
+            blockEl.style.gridTemplateRows = `repeat(${shape.length}, 18px)`;
+
+            shape.forEach(row => {
+                row.forEach(val => {
+                    const miniCell = document.createElement('div');
+                    if (val === 1) miniCell.classList.add('block-mini-cell');
+                    blockEl.appendChild(miniCell);
+                });
+            });
+
+            // Atur Event Drag/Touch
+            makeDraggable(blockEl, slotIdx, shape);
+            slot.appendChild(blockEl);
+        }
+
+        // Sistem Drag & Drop
+        function makeDraggable(el, slotIdx, shape) {
+            let active = false;
+            let startX, startY;
+
+            function onStart(e) {
+                active = true;
+                const point = e.touches ? e.touches[0] : e;
+                startX = point.clientX;
+                startY = point.clientY;
+                el.style.position = 'fixed';
+                el.style.zIndex = '1000';
+                moveAt(point.clientX, point.clientY);
+            }
+
+            function moveAt(pageX, pageY) {
+                el.style.left = pageX - (shape[0].length * 18) / 2 + 'px';
+                el.style.top = pageY - (shape.length * 18) / 2 - 50 + 'px'; // Offset posisi di atas jari/kursor
+            }
+
+            function onMove(e) {
+                if (!active) return;
+                const point = e.touches ? e.touches[0] : e;
+                moveAt(point.clientX, point.clientY);
+                highlightPlacement(point.clientX, point.clientY - 50, shape);
+            }
+
+            function onEnd(e) {
+                if (!active) return;
+                active = false;
+                const point = e.changedTouches ? e.changedTouches[0] : e;
+                
+                clearPreview();
+                const placed = tryPlaceBlock(point.clientX, point.clientY - 50, shape);
+
+                if (placed) {
+                    currentDockBlocks[slotIdx] = null;
+                    document.getElementById(`slot-${slotIdx}`).innerHTML = '';
+                    playSound('place');
+                    checkLines();
+
+                    // Jika semua balok di dock sudah terpakai
+                    if (currentDockBlocks.every(b => b === null)) {
+                        spawnDockBlocks();
+                    } else {
+                        checkGameOver();
+                    }
+                } else {
+                    // Kembalikan ke posisi awal jika gagal ditaruh
+                    el.style.position = 'static';
+                    el.style.zIndex = '1';
+                }
+            }
+
+            el.addEventListener('mousedown', onStart);
+            window.addEventListener('mousemove', onMove);
+            window.addEventListener('mouseup', onEnd);
+
+            el.addEventListener('touchstart', onStart, {passive: false});
+            window.addEventListener('touchmove', onMove, {passive: false});
+            window.addEventListener('touchend', onEnd);
+        }
+
+        function getBoardCellFromCoords(x, y) {
+            const rect = boardEl.getBoundingClientRect();
+            if (x < rect.left || x > rect.right || y < rect.top || y > rect.bottom) return null;
+
+            const cellSize = rect.width / BOARD_SIZE;
+            const c = Math.floor((x - rect.left) / cellSize);
+            const r = Math.floor((y - rect.top) / cellSize);
+            return { r, c };
+        }
+
+        function canPlace(r, c, shape) {
+            for (let row = 0; row < shape.length; row++) {
+                for (let col = 0; col < shape[row].length; col++) {
+                    if (shape[row][col] === 1) {
+                        let targetR = r + row;
+                        let targetC = c + col;
+                        if (targetR >= BOARD_SIZE || targetC >= BOARD_SIZE || boardState[targetR][targetC] === 1) {
+                            return false;
+                        }
+                    }
+                }
+            }
+            return true;
+        }
+
+        function highlightPlacement(x, y, shape) {
+            clearPreview();
+            const pos = getBoardCellFromCoords(x, y);
+            if (pos && canPlace(pos.r, pos.c, shape)) {
+                for (let r = 0; r < shape.length; r++) {
+                    for (let c = 0; c < shape[r].length; c++) {
+                        if (shape[r][c] === 1) {
+                            const idx = (pos.r + r) * BOARD_SIZE + (pos.c + c);
+                            boardEl.children[idx].classList.add('preview');
+                        }
+                    }
+                }
+            }
+        }
+
+        function clearPreview() {
+            Array.from(boardEl.children).forEach(cell => cell.classList.remove('preview'));
+        }
+
+        function tryPlaceBlock(x, y, shape) {
+            const pos = getBoardCellFromCoords(x, y);
+            if (pos && canPlace(pos.r, pos.c, shape)) {
+                let addedScore = 0;
+                for (let r = 0; r < shape.length; r++) {
+                    for (let c = 0; c < shape[r].length; c++) {
+                        if (shape[r][c] === 1) {
+                            boardState[pos.r + r][pos.c + c] = 1;
+                            addedScore++;
+                        }
+                    }
+                }
+                updateScore(addedScore);
+                renderBoard();
+                return true;
+            }
+            return false;
+        }
+
+        // Cek Garis Penuh & Hapus
+        function checkLines() {
+            let rowsToClear = [];
+            let colsToClear = [];
+
+            // Baris Penuh
+            for (let r = 0; r < BOARD_SIZE; r++) {
+                if (boardState[r].every(val => val === 1)) rowsToClear.push(r);
+            }
+
+            // Kolom Penuh
+            for (let c = 0; c < BOARD_SIZE; c++) {
+                let full = true;
+                for (let r = 0; r < BOARD_SIZE; r++) {
+                    if (boardState[r][c] === 0) { full = false; break; }
+                }
+                if (full) colsToClear.push(c);
+            }
+
+            if (rowsToClear.length > 0 || colsToClear.length > 0) {
+                playSound('clear');
+
+                rowsToClear.forEach(r => boardState[r].fill(0));
+                colsToClear.forEach(c => {
+                    for (let r = 0; r < BOARD_SIZE; r++) boardState[r][c] = 0;
+                });
+
+                let totalCleared = rowsToClear.length + colsToClear.length;
+                updateScore(totalCleared * 10);
+                renderBoard();
+
+                // Cek apakah seluruh papan kosong (Empty Board)
+                checkBoardEmpty();
+            }
+        }
+
+        // Cek Jika Papan Sepenuhnya Kosong -> Ganti Warna Tema Papan
+        function checkBoardEmpty() {
+            let isEmpty = boardState.every(row => row.every(val => val === 0));
+            if (isEmpty) {
+                currentThemeIndex = (currentThemeIndex + 1) % colorThemes.length;
+                const theme = colorThemes[currentThemeIndex];
+                document.documentElement.style.setProperty('--bg-color', theme.bg);
+                document.documentElement.style.setProperty('--board-bg', theme.board);
+                document.documentElement.style.setProperty('--cell-bg', theme.cell);
+            }
+        }
+
+        function updateScore(pts) {
+            score += pts;
+            scoreEl.innerText = score;
+            if (score > bestScore) {
+                bestScore = score;
+                bestScoreEl.innerText = bestScore;
+       
