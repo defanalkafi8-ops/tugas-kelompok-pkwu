@@ -201,7 +201,7 @@
         </div>
     </div>
 
-    <script>
+        <script>
         // Web Audio API yang aman dari error pemblokiran browser/GitHub
         let audioCtx = null;
 
@@ -255,7 +255,7 @@
                     osc.stop(audioCtx.currentTime + 0.4);
                 }
             } catch (err) {
-                // Abaikan error audio agar game tidak nge-lag/crash
+                // Abaikan error audio agar game tidak nge-lag
             }
         }
 
@@ -295,7 +295,7 @@
         const scoreEl = document.getElementById('current-score');
         const bestScoreEl = document.getElementById('best-score');
 
-        function createBoard() {
+                function createBoard() {
             boardEl.innerHTML = '';
             for (let r = 0; r < BOARD_SIZE; r++) {
                 for (let c = 0; c < BOARD_SIZE; c++) {
@@ -560,4 +560,21 @@
                 const shape = currentDockBlocks[i];
                 if (shape) {
                     for (let r = 0; r < BOARD_SIZE; r++) {
-     
+                        for (let c = 0; c < BOARD_SIZE; c++) {
+                            if (canPlace(r, c, shape)) return;
+                        }
+                    }
+                }
+            }
+
+            setTimeout(() => {
+                playSound('gameover');
+                document.getElementById('final-score').innerText = score;
+                document.getElementById('game-over-screen').classList.remove('hidden');
+            }, 300);
+        }
+
+        createBoard();
+    </script>
+</body>
+</html>
